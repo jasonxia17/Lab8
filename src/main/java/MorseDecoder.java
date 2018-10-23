@@ -3,10 +3,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.security.InvalidParameterException;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Scanner;
+import java.util.*;
 
 /**
  * Decode Morse code from a WAV file.
@@ -26,6 +23,30 @@ import java.util.Scanner;
  * each symbol in a table and return the corresponding letter value.
  */
 public class MorseDecoder {
+
+    private static double min(double[] arr) {
+        double currentMin = arr[0];
+        for (double value: arr) {
+            if (value < currentMin) {
+                currentMin = value;
+            }
+        }
+        return currentMin;
+    }
+
+    private static double max(double[] arr) {
+        double currentMax = arr[0];
+        for (double value: arr) {
+            if (value > currentMax) {
+                currentMax = value;
+            }
+        }
+        return currentMax;
+    }
+
+    private static boolean isPower(double value) {
+        return value > 0.25;
+    }
 
     /**
      * Bin size for power binning. We compute power over bins of this size. You will probably not
@@ -56,6 +77,11 @@ public class MorseDecoder {
         for (int binIndex = 0; binIndex < totalBinCount; binIndex++) {
             // Get the right number of samples from the inputFile
             // Sum all the samples together and store them in the returnBuffer
+            inputFile.readFrames(sampleBuffer, BIN_SIZE);
+            double amplitude = max(sampleBuffer) - min(sampleBuffer);
+            returnBuffer[binIndex] = amplitude;
+            System.out.println(amplitude);
+            System.out.println(Arrays.toString(sampleBuffer));
         }
         return returnBuffer;
     }
@@ -88,7 +114,32 @@ public class MorseDecoder {
         // else if issilence and wassilence
         // else if issilence and not wassilence
 
-        return "";
+        String returnString = "";
+        int dashThreshold = 9;
+        int spaceThreshold = 6;
+        int powerLength = 1;
+        int silenceLength = 1;
+
+        for (int i = 1; i < powerMeasurements.length; i++) {
+            if (isPower(powerMeasurements[i]) && isPower(powerMeasurements[i - 1])) {
+                powerLength++;
+            } else if (!isPower(powerMeasurements[i]) && isPower(powerMeasurements[i - 1])) {
+                if (powerLength >= dashThreshold) {
+                    returnString += "-";
+                } else {
+                    returnString += ".";
+                }
+                silenceLength = 1;
+            } else if (isPower(powerMeasurements[i]) && !isPower(powerMeasurements[i - 1])) {
+                if (silenceLength >= spaceThreshold) {
+                    returnString += " ";
+                }
+                powerLength = 1;
+            } else if (!isPower(powerMeasurements[i]) && !isPower(powerMeasurements[i - 1])) {
+                silenceLength++;
+            }
+        }
+        return returnString;
     }
 
     /**
